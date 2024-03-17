@@ -1,42 +1,22 @@
 import socket
-import os
 
-#ソケットの作成
-sock = socket.socket(socket.AF_UNIX,socket.SOCK_STREAM)
+# AF_INETを使用し、UDPソケットを作成
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-server_address = 'socket_file.sock'
+server_address = '127.0.0.1'
+server_port = 9001
+print('starting up on port {}'.format(server_port))
 
-#初期化
-try:
-    os.unlink(server_address)
-except FileExistsError:
-    pass
+# ソケットを特殊なアドレス0.0.0.0とポート9001に紐付け
+sock.bind((server_address, server_port))
 
-print("Starting up on {}".format(server_address))
-
-#bind
-sock.bind(server_address)
-
-#接続待ち
-sock.listen(1)
-
-#接続の確立
 while True:
-    connection , cliant_address = sock.accept()
-    try:
-        print('connection from',cliant_address)
-        #データ読み込み
-        data = connection.recv(4096)
-        data_str = data.decode('utf-8')
-        print('Recieved' + data_str)
-        if data:
-            response = 'Processing ' + data_str
-            #データ送信
-            connection.sendall(response.encode())
-        else:
-            print('no data from' + cliant_address)
-            break
-    #接続を閉じる
-    finally:
-        print('Closing current connection')
-        connection.close()
+   print('\nwaiting to receive message')
+   data, address = sock.recvfrom(4096)
+
+   print('received {} bytes from {}'.format(len(data), address))
+   print(data)
+
+   if data:
+       sent = sock.sendto(data, address)
+       print('sent {} bytes back to {}'.format(sent, address))
