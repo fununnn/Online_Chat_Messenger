@@ -1,42 +1,48 @@
 import socket
 import os
 
-#ソケットの作成
-sock = socket.socket(socket.AF_UNIX,socket.SOCK_STREAM)
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+server_address = '0.0.0.0'
+server_port = 9001
 
-server_address = 'socket_file.sock'
+print('starting up on port {}'.format(server_port))
 
-#初期化
-try:
-    os.unlink(server_address)
-except FileExistsError:
-    pass
+dpath = 'temp'
+if not os.path.exists(dpath):
+    os.mkdir(dpath)
 
-print("Starting up on {}".format(server_address))
-
-#bind
-sock.bind(server_address)
-
-#接続待ち
-sock.listen(1)
+sock.bind((server_address, server_port))
+connected_clients = {}
 
 #接続の確立
 while True:
-    connection , cliant_address = sock.accept()
-    try:
-        print('connection from',cliant_address)
-        #データ読み込み
-        data = connection.recv(4096)
-        data_str = data.decode('utf-8')
-        print('Recieved' + data_str)
-        if data:
-            response = 'Processing ' + data_str
-            #データ送信
-            connection.sendall(response.encode())
-        else:
-            print('no data from' + cliant_address)
-            break
-    #接続を閉じる
-    finally:
-        print('Closing current connection')
-        connection.close()
+    print('\nwaiting to receive message')
+    byteData, address = sock.recvfrom(4096)
+    print('received {} bytes from {}'.format(len(byteData), address))
+    
+    #各ヘッダ情報を格納
+    header = byteData[:8]
+    filename_length = int.from_bytes(header[:1],"big")
+    json_length = int.from_bytes(header[1:4],"big")
+    data_length = int.from_bytes(header[4:],"big")
+    
+    print('Received byteData from client. Byte lengths: Title length {}, JSON length {}, Data Length {}'.format(filename_length, json_length,data_length))
+    
+    #ファイル名の読み取り
+    filename = byteData[8:8+filename_length].decode('utf-8')
+    print(f"Filename:{filename}")
+    
+    #データが来た時のみ処理を行う
+    if data_length > 0:
+        file_path = os.path.join(dpath, filename)
+        with open(file_path,'wb+') as f:
+            f.write(byteData[8:8+filename_length:])
+            print('Finished downloading the file from client.')
+
+    #クライアントを辞書に追加
+    sender_id = address[1]
+    if sender_id not in connected_clients:
+        connected_clients[sender_id]= address
+
+    sent = sock.sendto(byteData, address)
+    print(f'sent {sent} bytes back to {address}')
