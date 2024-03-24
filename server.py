@@ -54,5 +54,13 @@ while True:
     if sender_id not in connected_clients:
         connected_clients[sender_id]= address
 
+    #時間経過でリレーシステムから削除
+    for client_address,last_message_time in client_last_messege_time.items():
+        time_offset = time.time() - last_message_time
+        if time_offset >= CLIENT_TIMEOUT:
+            del connected_clients[client_address]
+            del client_last_messege_time[client_address]
+            print(f"Removed client {client_address} due to inactivity.")
+
     sent = sock.sendto(byteData, address)
     print(f'sent {sent} bytes back to {address}')
