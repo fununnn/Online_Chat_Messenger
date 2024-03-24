@@ -1,5 +1,6 @@
 import socket
 import os
+import time
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 server_address = '0.0.0.0'
@@ -13,6 +14,11 @@ if not os.path.exists(dpath):
 
 sock.bind((server_address, server_port))
 connected_clients = {}
+client_last_messege_time = {}
+CLIENT_TIMEOUT = 10
+
+def updateClientLastMessegeTime(client_address):
+    client_last_messege_time[client_address] = time.time()
 
 #接続の確立
 while True:
@@ -20,6 +26,10 @@ while True:
     byteData, address = sock.recvfrom(4096)
     print('received {} bytes from {}'.format(len(byteData), address))
     
+    #クライアントの受信時刻更新
+    updateClientLastMessegeTime(address)
+    print(client_last_messege_time.get(address,"no messege recieved yet"))
+
     #各ヘッダ情報を格納
     header = byteData[:8]
     filename_length = int.from_bytes(header[:1],"big")
